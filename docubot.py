@@ -64,7 +64,18 @@ class DocuBot:
         ignore punctuation if needed.
         """
         index = {}
-        # TODO: implement simple indexing
+        for filename, text in documents:
+            # Split text into words and lowercase
+            words = text.lower().split()
+            # Remove basic punctuation from words
+            words = [word.strip('.,!?;:"()[]{}\'') for word in words]
+            # Use set to avoid duplicate words in the same document
+            unique_words = set(words)
+            for word in unique_words:
+                if word not in index:
+                    index[word] = []
+                if filename not in index[word]:
+                    index[word].append(filename)
         return index
 
     # -----------------------------------------------------------
@@ -81,8 +92,21 @@ class DocuBot:
         - Count how many appear in the text
         - Return the count as the score
         """
-        # TODO: implement scoring
-        return 0
+        # Convert query to lowercase and split into words
+        query_words = query.lower().split()
+        # Remove basic punctuation from query words
+        query_words = [word.strip('.,!?;:"()[]{}\'') for word in query_words]
+        
+        # Convert text to lowercase for comparison
+        text_lower = text.lower()
+        
+        # Count how many query words appear in the text
+        score = 0
+        for word in query_words:
+            if word in text_lower:
+                score += 1
+        
+        return score
 
     def retrieve(self, query, top_k=3):
         """
@@ -92,8 +116,23 @@ class DocuBot:
         Return a list of (filename, text) sorted by score descending.
         """
         results = []
-        # TODO: implement retrieval logic
-        return results[:top_k]
+        # Score each section (paragraph) of each document
+        for filename, text in self.documents:
+            # Split document into sections based on newlines (paragraphs)
+            sections = text.split('\n')
+            for section in sections:
+                # Skip empty sections
+                if not section.strip():
+                    continue
+                score = self.score_document(query, section)
+                if score > 0:
+                    results.append((filename, section, score))
+        
+        # Sort by score descending
+        results.sort(key=lambda x: x[2], reverse=True)
+        
+        # Return only filename and text, without the score
+        return [(filename, text) for filename, text, _ in results[:top_k]]
 
     # -----------------------------------------------------------
     # Answering Modes
@@ -106,6 +145,7 @@ class DocuBot:
         """
         snippets = self.retrieve(query, top_k=top_k)
 
+        # Guardrail: refuse to answer if no meaningful evidence found
         if not snippets:
             return "I do not know based on these docs."
 
@@ -128,6 +168,7 @@ class DocuBot:
 
         snippets = self.retrieve(query, top_k=top_k)
 
+        # Guardrail: refuse to answer if no meaningful evidence found
         if not snippets:
             return "I do not know based on these docs."
 

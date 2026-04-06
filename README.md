@@ -16,6 +16,13 @@ The docs folder contains realistic developer documents (API reference, authentic
 
 ---
 
+## Reflection
+
+Learners need to understand that retrieval is a safety mechanism that grounds LLM responses in evidence, preventing hallucinations by forcing answers to rely only on retrieved snippets rather than training data. It might also be useful to understand how RAGs usually retrieve similar text through cosine similarity. The learners might struggle with implementing the building effective scoring logic, implementing guardrails, and retrieving relevant content if the content is spread out. AI was helpful with the very explicit tasks that had the instructions written within the function. It was less useful for researching outside of the box of my current program. One way I would guide the student without giving them the answer is by having them run their program, make predictions, and investigate the output.
+
+Also, as a side note, I switched from Gemini 2.5 Flash to Gemma 3 27B, because there are higher rate limits on the free tier.
+
+
 ## Setup
 
 ### 1. Install Python dependencies

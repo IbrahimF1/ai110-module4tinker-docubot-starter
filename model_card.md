@@ -15,16 +15,16 @@ Use clear, honest descriptions. It is fine if your system is imperfect.
 **What is DocuBot trying to do?**  
 Describe the overall goal in 2 to 3 sentences.
 
-> _Your answer here._
+> DocuBot answers developer questions about a codebase using project documentation. It retrieves relevant text sections and generates responses through three modes: naive LLM, retrieval only, and RAG.
 
 **What inputs does DocuBot take?**  
 For example: user question, docs in folder, environment variables.
 
-> _Your answer here._
+> DocuBot takes a user question and loads documentation files from the docs/ folder. It optionally uses a GEMINI_API_KEY environment variable for LLM features.
 
 **What outputs does DocuBot produce?**
 
-> _Your answer here._
+> DocuBot returns retrieved text snippets with source filenames or generated answers. In retrieval only mode, it returns raw snippets. In RAG mode, it returns LLM-generated answers based on retrieved snippets.
 
 ---
 
@@ -37,12 +37,12 @@ Describe your choices for indexing and scoring.
 - How do you score relevance for a query?
 - How do you choose top snippets?
 
-> _Your answer here._
+> I build an inverted index that maps each lowercase word to the documents containing it. I split documents into paragraphs by newlines and score each section by counting matching query words. I return the top-k sections sorted by score in descending order.
 
 **What tradeoffs did you make?**  
 For example: speed vs precision, simplicity vs accuracy.
 
-> _Your answer here._
+> I chose simplicity over accuracy by using basic word matching instead of semantic understanding. This approach runs fast but may miss relevant content that uses different terminology.
 
 ---
 
@@ -55,12 +55,12 @@ Briefly describe how each mode behaves.
 - Retrieval only mode:
 - RAG mode:
 
-> _Your answer here._
+> Naive LLM mode calls the LLM without any context. Retrieval only mode never calls the LLM and returns raw snippets. RAG mode calls the LLM with retrieved snippets as context.
 
 **What instructions do you give the LLM to keep it grounded?**  
 Summarize the rules from your prompt. For example: only use snippets, say "I do not know" when needed, cite files.
 
-> _Your answer here._
+> I instruct the LLM to use only the provided snippets and refuse to guess when evidence is insufficient. I require the LLM to reply "I do not know based on the docs I have" when snippets lack information. I ask the LLM to mention which files it relied on when answering.
 
 ---
 
@@ -72,10 +72,10 @@ You can reuse or adapt the queries from `dataset.py`.
 
 | Query | Naive LLM: helpful or harmful? | Retrieval only: helpful or harmful? | RAG: helpful or harmful? | Notes |
 |------|---------------------------------|--------------------------------------|---------------------------|-------|
-| Example: Where is the auth token generated? | | | | |
-| Example: How do I connect to the database? | | | | |
-| Example: Which endpoint lists all users? | | | | |
-| Example: How does a client refresh an access token? | | | | |
+| Example: Where is the auth token generated? | Harmful | Helpful | Helpful | Naive LLM hallucinates, retrieval finds correct line |
+| Example: How do I connect to the database? | Harmful | Helpful | Helpful | Naive LLM invents steps, retrieval finds actual instructions |
+| Example: Which endpoint lists all users? | Harmful | Helpful | Helpful | Naive LLM guesses incorrectly, retrieval finds correct endpoint |
+| Example: How does a client refresh an access token? | Harmful | Helpful | Helpful | Naive LLM provides wrong method, retrieval finds correct endpoint |
 
 **What patterns did you notice?**  
 
@@ -83,7 +83,7 @@ You can reuse or adapt the queries from `dataset.py`.
 - When is retrieval only clearly better?  
 - When is RAG clearly better than both?
 
-> _Your answer here._
+> Naive LLM looks impressive when it provides detailed, confident answers but often hallucinates information not in the docs. Retrieval only is clearly better for factual questions where the answer exists in the documentation. RAG is clearly better when the question requires synthesis or explanation beyond simple fact retrieval.
 
 ---
 
@@ -96,19 +96,19 @@ For each one, say:
 - What did the system do?  
 - What should have happened instead?
 
-> _Failure case 1 here._
+> **Failure case 1:** Question: "What payment methods does the system support?" The system returned no results because the docs don't mention payment processing. It correctly refused to answer with "I do not know based on these docs."
 
-> _Failure case 2 here._
+> **Failure case 2:** Question: "How do I delete a user account?" The system retrieved snippets about user table fields but no deletion instructions. It returned irrelevant snippets instead of refusing to answer.
 
-**When should DocuBot say “I do not know based on the docs I have”?**  
+**When should DocuBot say "I do not know based on the docs I have"?**  
 Give at least two specific situations.
 
-> _Your answer here._
+> DocuBot should say "I do not know" when no retrieved snippets contain relevant information. It should also refuse when snippets mention related concepts but don't answer the specific question.
 
 **What guardrails did you implement?**  
 Examples: refusal rules, thresholds, limits on snippets, safe defaults.
 
-> _Your answer here._
+> I implemented a guardrail that checks if retrieval returns any results before answering. I return "I do not know based on these docs" when no relevant snippets exist. I also skip empty sections during retrieval to avoid returning blank content.
 
 ---
 
@@ -117,16 +117,16 @@ Examples: refusal rules, thresholds, limits on snippets, safe defaults.
 **Current limitations**  
 List at least three limitations of your DocuBot system.
 
-1. _Limitation 1_
-2. _Limitation 2_
-3. _Limitation 3_
+1. Simple word matching fails to understand semantic meaning or context.
+2. The system cannot handle multi-word phrases or technical terms that differ from exact matches.
+3. Paragraph-level retrieval may miss relevant information spread across multiple sections.
 
 **Future improvements**  
 List two or three changes that would most improve reliability or usefulness.
 
-1. _Improvement 1_
-2. _Improvement 2_
-3. _Improvement 3_
+1. Implement semantic search using embeddings to match meaning beyond exact words.
+2. Add phrase matching and technical term recognition to improve precision.
+3. Implement context windowing to combine related paragraphs for more comprehensive retrieval.
 
 ---
 
@@ -135,13 +135,12 @@ List two or three changes that would most improve reliability or usefulness.
 **Where could this system cause real world harm if used carelessly?**  
 Think about wrong answers, missing information, or over trusting the LLM.
 
-> _Your answer here._
+> The system could cause harm if developers implement incorrect authentication methods based on hallucinated LLM responses. It could also lead to security vulnerabilities if it provides outdated or incomplete configuration instructions. Over-reliance on the system might prevent developers from reading actual documentation.
 
 **What instructions would you give real developers who want to use DocuBot safely?**  
 Write 2 to 4 short bullet points.
 
-- _Guideline 1_
-- _Guideline 2_
-- _Guideline 3 (optional)_
-
----
+- Always verify critical information by reading the actual documentation files.
+- Treat LLM-generated answers as suggestions rather than authoritative sources.
+- Use retrieval only mode for factual questions where exact accuracy matters.
+- Cross-check any configuration values, endpoints, or code examples in the original docs.
